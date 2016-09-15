@@ -1,0 +1,23 @@
+#!/bin/bash
+set -o errexit -o nounset -o pipefail
+
+if [ -z "${PROMETHEUS_URI:-}" ]; then
+  echo "PROMETHEUS_URI environment variable not set"
+  exit 1
+fi
+
+echo "Starting Grafana"
+/run.sh &
+grafana_pid=$!
+
+trap "kill -TERM $grafana_pid; wait $grafana_pid" SIGTERM
+trap "kill -INT $grafana_pid; wait $grafana_pid" SIGINT
+
+echo "Waiting 5 seconds before trying to add Prometheus on DC/OS datasource"
+sleep 5
+/bin/promdtsrcadd -l "${GF_SECURITY_ADMIN_USER:-admin}" \
+                  -p "${GF_SECURITY_ADMIN_PASSWORD:-admin}" \
+                  -pu "${PROMETHEUS_URI}" \
+                  -pl "${PROMETHEUS_LOGIN:-}" \
+                  -pp "${PROMETHEUS_PASSWORD:-}"
+wait

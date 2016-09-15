@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+import sys
+import argparse
+import requests
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
+import logging
+
+logging.basicConfig(level=logging.WARN, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger('__main__').setLevel(logging.DEBUG)
+logging.getLogger('GrafanaPrometheus').setLevel(logging.DEBUG)
+
+
+def main(argv):
+    log = logging.getLogger(__name__)
+    p = argparse.ArgumentParser(
+        description='Grafana Prometheus Datasource Adder',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    p.add_argument('--uri', '-u', help='Grafana URI', default='http://localhost:3000')
+    p.add_argument('--login', '-l', help='Grafana Login', required=True)
+    p.add_argument('--password', '-p', help='Grafana Password', required=True)
+    p.add_argument('--prometheus-uri', '-pu', help='Prometheus URI', required=True)
+    p.add_argument('--prometheus-login', '-pl', help='Prometheus Login', default=None)
+    p.add_argument('--prometheus-password', '-pp', help='Prometheus Password', default=None)
+    args = p.parse_args(argv)
+
+    if type(args.prometheus_login) == str and len(args.prometheus_login) == 0:
+        args.prometheus_login = None
+    if type(args.prometheus_password) == str and len(args.prometheus_password) == 0:
+        args.prometheus_password = None
+
+    gp = GrafanaPrometheus(args.uri)
+    gp.login(login=args.login, password=args.password)
+    if gp.add_datasource(uri=args.prometheus_uri, login=args.prometheus_login, password=args.prometheus_password):
+        log.info('Successfully added Prometheus on DC/OS datasource')
+    else:
+        raise RuntimeError('Failed to add Prometheus on DC/OS datasource')
+
+
+class GrafanaPrometheus:
+    def __init__(self, uri):
+        if uri[-1] != '/':
+            uri += '/'
+        self.uri = uri
+        self.__s = requests.Session()
+        self.log = logging.getLogger(__name__)
+
+        retries = Retry(total=5,
+                        backoff_factor=1)
+
+        self.__s.mount('http://', HTTPAdapter(max_retries=retries))
+        self.__s.mount('https://', HTTPAdapter(max_retries=retries))
+
+    def login(self, login='admin', password='admin', email=''):
+        self.log.debug("Logging in to {}".format(self.uri))
+        r = self.__s.post(self.uri+'login', json={'user': login, 'password': password, 'email': email})
+        if r.status_code != 200:
+            raise RuntimeError(r.json()['message'])
+
+    def datasources(self):
+        self.log.debug("Retrieving datasources")
+        r = self.__s.get(self.uri+'api/datasources')
+        if r.status_code != 200:
+            raise RuntimeError(r.json()['message'])
+        return r.json()
+
+    def add_datasource(self, uri, login=None, password=None):
+        self.log.debug('Adding Prometheus datasource with URI {}'.format(uri))
+        json = {
+            'access': 'proxy',
+            'name': 'Prometheus on DC/OS',
+            'type': 'prometheus',
+            'url': uri
+        }
+        if login and password:
+            json['basicAuth'] = True
+            json['basicAuthUser'] = login
+            json['basicAuthPassword'] = password
+
+        for datasource in self.datasources():
+            if datasource['url'] == uri:
+                self.log.info('Found existing datasource {} - updating'.format(datasource['name']))
+                r = self.__s.put('{}{}/{}'.format(self.uri, 'api/datasources', datasource['id']), json=json)
+                return True if r.status_code == 200 else False
+
+        r = self.__s.post(self.uri+'api/datasources', json=json)
+        return True if r.status_code == 200 else False
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

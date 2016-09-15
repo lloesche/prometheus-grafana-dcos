@@ -1,0 +1,47 @@
+{
+  "id": "/prometheus/grafana",
+  "instances": 1,
+  "cpus": 0.5,
+  "mem": 1024,
+  "ports": [0],
+  "env": {
+    "GF_PATHS_DATA": "/mnt/mesos/sandbox/grafana",
+    "GF_SERVER_ROOT_URL": "http://grafana.example.com"
+  },
+  "container": {
+    "type": "DOCKER",
+    "volumes": [
+      {
+        "containerPath": "grafana",
+        "persistent": {
+          "size": 51200
+        },
+        "mode": "RW"
+      }
+    ],
+    "docker": {
+      "image": "lloesche/prometheus-grafana-dcos",
+      "forcePullImage": true,
+      "network": "BRIDGE",
+      "portMappings": [
+        {
+            "containerPort": 3000,
+            "protocol": "tcp",
+            "labels": {
+              "VIP_0": "/prometheus/grafana:3000"
+            }
+        }
+      ]
+    }
+  },
+  "residency": {
+    "taskLostBehavior": "WAIT_FOREVER"
+  },
+  "healthChecks": [
+    {
+      "path": "/",
+      "portIndex": 0,
+      "protocol": "HTTP"
+    }
+  ]
+}
