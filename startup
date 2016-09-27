@@ -9,8 +9,7 @@ fi
 echo "Starting Grafana"
 /run.sh & grafana_pid=$!
 
-trap "kill -TERM $grafana_pid; wait $grafana_pid" SIGTERM
-trap "kill -INT $grafana_pid; wait $grafana_pid" SIGINT
+trap "kill -TERM $grafana_pid; wait $grafana_pid" EXIT
 
 echo "Waiting 5 seconds before trying to add Prometheus on DC/OS datasource"
 sleep 5
