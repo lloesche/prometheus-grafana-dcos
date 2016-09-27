@@ -79,10 +79,10 @@ class GrafanaPrometheus:
             if datasource['url'] == uri:
                 self.log.info('Found existing datasource {} - updating'.format(datasource['name']))
                 r = self.__s.put('{}{}/{}'.format(self.uri, 'api/datasources', datasource['id']), json=json)
-                return True if r.status_code == 200 else False
+                return r.status_code == 200
 
         r = self.__s.post(self.uri+'api/datasources', json=json)
-        return True if r.status_code == 200 else False
+        return r.status_code == 200
 
 if __name__ == "__main__":
     main(sys.argv[1:])
