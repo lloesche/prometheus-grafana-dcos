@@ -7,8 +7,7 @@ if [ -z "${PROMETHEUS_URI:-}" ]; then
 fi
 
 echo "Starting Grafana"
-/run.sh &
-grafana_pid=$!
+/run.sh & grafana_pid=$!
 
 trap "kill -TERM $grafana_pid; wait $grafana_pid" SIGTERM
 trap "kill -INT $grafana_pid; wait $grafana_pid" SIGINT
