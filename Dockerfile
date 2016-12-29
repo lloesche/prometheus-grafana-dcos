@@ -1,10 +1,10 @@
-FROM grafana/grafana
+FROM grafana/grafana:4.0.2
 MAINTAINER Lukas Loesche <lloesche@fedoraproject.org>
 
 EXPOSE 3000
 
 RUN apt-get update && \
-    apt-get -y install python3-minimal python3-requests && \
+    apt-get -y install python3-minimal python3-requests curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -16,5 +16,3 @@ RUN chmod +x /bin/promdtsrcadd /bin/startup /bin/dumb-init
 
 ENTRYPOINT [ "/bin/dumb-init", "--" ]
 CMD ["/bin/startup"]
-
-

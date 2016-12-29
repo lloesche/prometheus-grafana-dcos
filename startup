@@ -11,8 +11,11 @@ echo "Starting Grafana"
 
 trap "kill -TERM $grafana_pid; wait $grafana_pid" EXIT
 
-echo "Waiting 5 seconds before trying to add Prometheus on DC/OS datasource"
-sleep 5
+until $(curl --output /dev/null --silent --head --fail http://localhost:3000); do
+    echo "Grafana not ready. Waiting 5 seconds before trying to add Prometheus on DC/OS datasource"
+    sleep 5
+done
+
 /bin/promdtsrcadd -l "${GF_SECURITY_ADMIN_USER:-admin}" \
                   -p "${GF_SECURITY_ADMIN_PASSWORD:-admin}" \
                   -pu "${PROMETHEUS_URI}" \
